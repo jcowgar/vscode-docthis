@@ -52,7 +52,7 @@ function runCommand(commandName: string, document: vs.TextDocument, implFunc: ()
 // Thanks, @mjbvz!
 class DocThisCompletionItem extends CompletionItem {
     constructor(document: TextDocument, position: Position) {
-        super("/** Document This */", CompletionItemKind.Snippet);
+        super("/** Document This ND */", CompletionItemKind.Snippet);
         this.insertText = "";
         this.sortText = "\0";
 
@@ -66,7 +66,7 @@ class DocThisCompletionItem extends CompletionItem {
 
         this.command = {
             title: "Document This",
-            command: "docthis.documentThis",
+            command: "docthis.documentThisND",
             arguments: [true]
         };
     }
@@ -80,7 +80,7 @@ export function activate(context: vs.ExtensionContext): void {
                 const line = document.lineAt(position.line).text;
                 const prefix = line.slice(0, position.character);
 
-                if (prefix.match(/^\s*$|\/\*\*\s*$|^\s*\/\*\*+\s*$/)) {
+                if (prefix.match(/^\s*$|\/\*\s*$/)) {
                     return [new DocThisCompletionItem(document, position)];
                 }
 
@@ -89,7 +89,7 @@ export function activate(context: vs.ExtensionContext): void {
         },
         "/", "*"));
 
-    context.subscriptions.push(vs.commands.registerCommand("docthis.documentThis", (forCompletion: boolean) => {
+    context.subscriptions.push(vs.commands.registerCommand("docthis.documentThisND", (forCompletion: boolean) => {
         const commandName = "Document This";
 
         runCommand(commandName, vs.window.activeTextEditor.document, () => {
@@ -97,7 +97,7 @@ export function activate(context: vs.ExtensionContext): void {
         });
     }));
 
-    context.subscriptions.push(vs.commands.registerCommand("docthis.traceTypeScriptSyntaxNode", () => {
+    context.subscriptions.push(vs.commands.registerCommand("docthis.traceTypeScriptSyntaxNodeND", () => {
         const commandName = "Trace TypeScript Syntax Node";
 
         runCommand(commandName, vs.window.activeTextEditor.document, () => {

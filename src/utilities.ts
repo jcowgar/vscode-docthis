@@ -232,7 +232,7 @@ export class SnippetStringBuilder {
     toCommentValue() {
         let sb = new StringBuilder();
 
-        sb.appendLine("/**");
+        sb.appendLine("/*");
 
         const lines = this._snippet.value.split("\n");
         lines.forEach((line, i) => {
@@ -240,11 +240,11 @@ export class SnippetStringBuilder {
                 return;
             }
 
-            sb.append(" * ");
+            sb.append("\t");
             sb.appendLine(line);
         });
 
-        sb.appendLine(" */");
+        sb.appendLine("*/");
 
         return new vs.SnippetString(sb.toString());
     }

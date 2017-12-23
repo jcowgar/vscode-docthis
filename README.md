@@ -1,7 +1,7 @@
-[![Build Status](https://travis-ci.org/joelday/vscode-docthis.svg?branch=master)](https://travis-ci.org/joelday/vscode-docthis) [![Paypal Donations](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&amp;business=7YU9WH4ANAB4Q&amp;lc=US&amp;item_name=Document%20This&amp;item_number=vscode-docthis%20extension&amp;currency_code=USD&amp;bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted)
+[![Build Status](https://travis-ci.org/joelday/vscode-docthisnd.svg?branch=master)](https://travis-ci.org/joelday/vscode-docthis) [![Paypal Donations](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&amp;business=7YU9WH4ANAB4Q&amp;lc=US&amp;item_name=Document%20This&amp;item_number=vscode-docthis%20extension&amp;currency_code=USD&amp;bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted)
 
-# Document This
-"Document This" is a Visual Studio Code extension that automatically generates detailed JSDoc comments for both TypeScript and JavaScript files.
+# Document This - NaturalDoc
+"Document This" is a Visual Studio Code extension that automatically generates detailed NaturalDoc comments for both TypeScript and JavaScript files. This plugin was originally created by joelday for JSDoc but was modified by jcowgar to support NaturalDoc comments.
 
 ![Demo](images/demo.gif)
 

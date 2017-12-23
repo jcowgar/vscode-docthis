@@ -9,14 +9,6 @@ function includeTypes() {
     return vs.workspace.getConfiguration().get("docthis.includeTypes", true);
 }
 
-function inferTypes() {
-    return vs.workspace.getConfiguration().get("docthis.inferTypesFromNames", false);
-}
-
-function enableHungarianNotationEvaluation() {
-    return vs.workspace.getConfiguration().get("docthis.enableHungarianNotationEvaluation", false);
-}
-
 export class Documenter implements vs.Disposable {
     private _languageServiceHost: LanguageServiceHost;
     private _services: ts.LanguageService;
@@ -185,24 +177,17 @@ export class Documenter implements vs.Disposable {
     }
 
     private _emitDescriptionHeader(sb: utils.SnippetStringBuilder) {
-        if (vs.workspace.getConfiguration().get("docthis.includeDescriptionTag", false)) {
-            sb.append("@description ");
-            sb.appendSnippetTabstop();
-            sb.appendLine();
-        } else {
-            // We don't want description tag, probably because we want to free type the description. So add space for that.
-            sb.appendSnippetTabstop();
-            sb.appendLine();
-
-            // Jump a line after description free-type area before showing other tags
-            sb.appendLine();
-        }
+        sb.appendLine();
+        sb.appendLine();
+        sb.appendSnippetTabstop();
+        sb.appendLine();
     }
 
     private _emitAuthor(sb: utils.SnippetStringBuilder) {
         if (vs.workspace.getConfiguration().get("docthis.includeAuthorTag", false)) {
             let author: string = vs.workspace.getConfiguration().get("docthis.authorName", "");
-            sb.append("@author " + author);
+            sb.append("Author: " + author);
+            sb.append("");
             sb.appendSnippetTabstop();
             sb.appendLine();
         }
@@ -237,30 +222,31 @@ export class Documenter implements vs.Disposable {
         this._emitTypeParameters(sb, node);
         this._emitParameters(sb, node);
         this._emitReturns(sb, node);
-        this._emitMemberOf(sb, node.parent);
 
         return ts.getLineAndCharacterOfPosition(sourceFile, targetNode.getStart());
     }
 
     private _emitClassDeclaration(sb: utils.SnippetStringBuilder, node: ts.ClassDeclaration) {
-        this._emitDescriptionHeader(sb);
-        this._emitAuthor(sb);
-
-        this._emitModifiers(sb, node);
-
-        sb.append("@class");
+        sb.append("Class:");
 
         if (node.name) {
             sb.append(` ${ node.name.getText() }`);
         }
 
-        sb.appendLine();
-
+        this._emitDescriptionHeader(sb);
+        this._emitAuthor(sb);
+        this._emitModifiers(sb, node);
         this._emitHeritageClauses(sb, node);
         this._emitTypeParameters(sb, node);
     }
 
     private _emitPropertyDeclaration(sb: utils.SnippetStringBuilder, node: ts.PropertyDeclaration | ts.AccessorDeclaration) {
+        sb.append("Property:");
+
+        if (node.name) {
+            sb.append(` ${ node.name.getText() }`);
+        }
+
         this._emitDescriptionHeader(sb);
 
         if (node.kind === ts.SyntaxKind.GetAccessor) {
@@ -276,17 +262,6 @@ export class Documenter implements vs.Disposable {
         }
 
         this._emitModifiers(sb, node);
-
-        // JSDoc fails to emit documentation for arrow function syntax. (https://github.com/jsdoc3/jsdoc/issues/1100)
-        if (includeTypes()) {
-            if (node.type && node.type.getText().indexOf("=>") === -1) {
-                sb.appendLine(`@type ${ utils.formatTypeName(node.type.getText()) }`);
-            } else if (enableHungarianNotationEvaluation() && this._isHungarianNotation(node.name.getText())) {
-                sb.appendLine(`@type ${ this._getHungarianNotationType(node.name.getText()) }`);
-            }
-        }
-
-        this._emitMemberOf(sb, node.parent);
     }
 
     private _emitInterfaceDeclaration(sb: utils.SnippetStringBuilder, node: ts.InterfaceDeclaration) {
@@ -309,7 +284,12 @@ export class Documenter implements vs.Disposable {
         sb.appendLine(`@enum {number}`);
     }
 
+    private _emitFunctionName(sb: utils.SnippetStringBuilder, node: ts.MethodDeclaration | ts.FunctionDeclaration) {
+        sb.append(`Function: ${node.name.getText()}`);
+    }
+
     private _emitMethodDeclaration(sb: utils.SnippetStringBuilder, node: ts.MethodDeclaration | ts.FunctionDeclaration) {
+        this._emitFunctionName(sb, node);
         this._emitDescriptionHeader(sb);
         this._emitAuthor(sb);
 
@@ -317,148 +297,38 @@ export class Documenter implements vs.Disposable {
         this._emitTypeParameters(sb, node);
         this._emitParameters(sb, node);
         this._emitReturns(sb, node);
-        this._emitMemberOf(sb, node.parent);
-    }
-
-    private _emitMemberOf(sb: utils.SnippetStringBuilder, parent: ts.Node) {
-        let enabledForClasses = parent.kind === ts.SyntaxKind.ClassDeclaration && vs.workspace.getConfiguration().get("docthis.includeMemberOfOnClassMembers", true);
-        let enabledForInterfaces = parent.kind === ts.SyntaxKind.InterfaceDeclaration && vs.workspace.getConfiguration().get("docthis.includeMemberOfOnInterfaceMembers", true);
-        if (parent && (<any>parent)["name"] && (enabledForClasses || enabledForInterfaces)) {
-            sb.appendLine("@memberof " + (<any>parent)["name"].text);
-        }
-    }
-
-    private _isNameBooleanLike(name: string): boolean {
-        return /(?:is|has|can)[A-Z_]/.test(name);
-    }
-
-    private _isNameFunctionLike(name: string): boolean {
-        const fnNames = ["cb", "callback", "done", "next", "fn"];
-        return fnNames.indexOf(name) !== -1;
-    }
-
-    private _inferReturnTypeFromName(name: string): string {
-        if (this._isNameBooleanLike(name)) {
-            return "{boolean}";
-        }
-
-        return "";
     }
 
     private _emitReturns(sb: utils.SnippetStringBuilder, node: ts.MethodDeclaration | ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction) {
         if (utils.findNonVoidReturnInCurrentScope(node) || (node.type && node.type.getText() !== "void")) {
-            sb.append("@returns");
-            if (includeTypes() && node.type) {
-                sb.append(" " + utils.formatTypeName(node.type.getText()));
-            }
-            else if (includeTypes() && inferTypes()) {
-                sb.append(" " + this._inferReturnTypeFromName(node.name.getText()));
-            }
-
-            sb.append(" ");
+            sb.appendLine("");
+            sb.appendLine("Returns:");
+            sb.append("\t");
             sb.appendSnippetTabstop();
-
             sb.appendLine();
         }
 
-    }
-
-    private _inferParamTypeFromName(name: string): string {
-        if (this._isNameFunctionLike(name)) {
-            return "{function}";
-        }
-
-        if (this._isNameBooleanLike(name)) {
-            return "{boolean}";
-        }
-
-        return "{any}";
     }
 
     private _emitParameters(sb: utils.SnippetStringBuilder, node:
         ts.MethodDeclaration | ts.FunctionDeclaration | ts.ConstructorDeclaration | ts.FunctionExpression | ts.ArrowFunction) {
 
-        if (!node.parameters) {
+        if (!node.parameters || node.parameters.length === 0) {
             return;
         }
 
+        sb.appendLine();
+        sb.appendLine("Parameters:");
+
         node.parameters.forEach(parameter => {
             const name = parameter.name.getText();
-            const isOptional = parameter.questionToken || parameter.initializer;
-            const isArgs = !!parameter.dotDotDotToken;
-            const initializerValue = parameter.initializer ? parameter.initializer.getText() : null;
 
-            let typeName = "{any}";
-
-            if (includeTypes()) {
-                if (parameter.initializer && !parameter.type) {
-                    if (/^[0-9]/.test(initializerValue)) {
-                        typeName = "{number}";
-                    }
-                    else if (initializerValue.indexOf("\"") !== -1 ||
-                        initializerValue.indexOf("'") !== -1 ||
-                        initializerValue.indexOf("`") !== -1) {
-                        typeName = "{string}";
-                    }
-                    else if (initializerValue.indexOf("true") !== -1 ||
-                        initializerValue.indexOf("false") !== -1) {
-                        typeName = "{boolean}";
-                    }
-                }
-                else if (parameter.type) {
-                    typeName = utils.formatTypeName((isArgs ? "..." : "") + parameter.type.getFullText().trim());
-                }
-                else if (enableHungarianNotationEvaluation() && this._isHungarianNotation(name)) {
-                    typeName = this._getHungarianNotationType(name);
-                }
-                else if (inferTypes()) {
-                    typeName = this._inferParamTypeFromName(name);
-                }
-            }
-
-            sb.append("@param ");
-
-            if (includeTypes()) {
-                sb.append(typeName + " ");
-            }
-
-            if (isOptional) {
-                sb.append("[");
-            }
-
+            sb.append("\t- ");
             sb.append(name);
-
-            if (parameter.initializer && typeName) {
-                sb.append("=" + parameter.initializer.getText());
-            }
-
-            if (isOptional) {
-                sb.append("]");
-            }
-
-            sb.append(" ");
+            sb.append(" - ");
             sb.appendSnippetTabstop();
-
             sb.appendLine();
         });
-    }
-
-    private _isHungarianNotation(name: string): boolean {
-        return /^[abefimos][A-Z]/.test(name);
-    }
-
-    private _getHungarianNotationType(name: string): string {
-        switch (name.charAt(0)) {
-            case "a": return "{Array}";
-            case "b": return "{boolean}";
-            case "e": return "{Object}"; // Enumeration
-            case "f": return "{function}";
-            case "i": return "{number}";
-            case "m": return "{Object}"; // Map
-            case "o": return "{Object}";
-            case "s": return "{string}";
-            default: return "{any}";
-        }
     }
 
     private _emitConstructorDeclaration(sb: utils.SnippetStringBuilder, node: ts.ConstructorDeclaration) {
@@ -469,7 +339,6 @@ export class Documenter implements vs.Disposable {
         this._emitAuthor(sb);
 
         this._emitParameters(sb, node);
-        this._emitMemberOf(sb, node.parent);
     }
 
     private _emitTypeParameters(sb: utils.SnippetStringBuilder, node: ts.ClassLikeDeclaration | ts.InterfaceDeclaration | ts.MethodDeclaration | ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction) {
